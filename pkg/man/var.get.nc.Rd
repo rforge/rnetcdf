@@ -7,7 +7,7 @@
 \description{Read the contents of a NetCDF variable.}
 
 \usage{var.get.nc(ncfile, variable, start=NA, count=NA,
-        na.mode=0, collapse=TRUE, unpack=FALSE, rawchar=FALSE, fitnum=FALSE)}
+        na.mode=0, collapse=TRUE, unpack=FALSE, rawchar=FALSE)}
 
 \arguments{
   \item{ncfile}{Object of class "\code{NetCDF}" which points to the NetCDF dataset (as returned from \code{\link[RNetCDF]{open.nc}}).}
@@ -18,16 +18,9 @@
   \item{collapse}{\code{TRUE} if degenerated dimensions (length=1) should be omitted.}
   \item{unpack}{Packed variables are unpacked if \code{unpack=TRUE} and the attributes \code{add_offset} and \code{scale_factor} are defined. Default is \code{FALSE}.}
   \item{rawchar}{This option only relates to NetCDF variables of type \code{NC_CHAR}. When \code{rawchar} is \code{FALSE} (default), a NetCDF variable of type \code{NC_CHAR} is converted to a \code{character} array in R. The \code{character} values are from the fastest-varying dimension of the NetCDF variable, so that the R \code{character} array has one fewer dimensions than the \code{NC_CHAR} array. If \code{rawchar} is \code{TRUE}, the bytes of \code{NC_CHAR} data are read into an R \code{raw} array of the same shape.}
-  \item{fitnum}{By default, all numeric variables are read into R as double precision values. When \code{fitnum==TRUE}, the smallest R type that can exactly represent each external type is used. Types \code{NC_BYTE}, \code{NC_UBYTE}, \code{NC_SHORT}, \code{NC_USHORT} and \code{NC_INT} are read as R integer values, which require half the memory of double precision. \code{NC_UINT} is always read as double precision to avoid integer overflow. Due to the lack of native support for 64-bit integers in R, \code{NC_INT64} and \code{NC_UINT64} are stored as R character vectors in decimal format.}
 }
 
-\value{A multidimensional array with a data type that depends on the NetCDF variable. For NetCDF variables of type \code{NC_CHAR}, the R type is either \code{character} or \code{raw}, as specified by argument \code{rawchar}. For \code{NC_STRING}, the R type is \code{character}. Numeric variables are read as double precision by default, but the smallest R type that exactly represents each external type is used if \code{fitnum} is \code{TRUE}.
-
-The dimension order in the R array is reversed relative to the order reported by NetCDF commands such as \code{ncdump}, because NetCDF arrays are stored in row-major (C) order whereas R arrays are stored in column-major (Fortran) order.
-
-Arrays of type \code{character} drop the fastest-varying dimension of the corresponding \code{NC_CHAR} array, because this dimension corresponds to the length of the individual \code{character} elements. For example, an \code{NC_CHAR} array with dimensions (5,10) would be returned as a \code{character} vector containing 5 elements, each with a maximum length of 10 characters.}
-
-\details{This function returns the value of a variable. The conversion between R and NetCDF data types and array dimensions is described in the previous section.
+\details{This function returns the value of a variable. Numeric variables are always returned in R double precision, no matter what precision they have in the on-disk dataset. NetCDF variables of type \code{NC_CHAR} are returned as R \code{character} or \code{raw} variables, as specified by argument \code{rawchar}.
 
 Values of \code{NA} are supported in numeric variables. Values in the data file that match the variable's missing value attribute (as defined in \code{na.mode}) are automatically converted to \code{NA} before being returned to the user. If \code{na.mode=0} and both attributes are defined, the value of \code{_FillValue} is used.
 
@@ -39,6 +32,12 @@ The argument \code{collapse} allows to keep degenerated dimensions (if set to \c
 
 Awkwardness arises mainly from one thing: NetCDF data are written with the last dimension varying fastest, whereas R works opposite. Thus, the order of the dimensions according to the CDL conventions (e.g., time, latitude, longitude) is reversed in the R array (e.g., longitude, latitude, time).}
 
+\value{A multidimensional array with a data type that depends on the NetCDF variable. For NetCDF variables of type \code{NC_CHAR}, the R type is either \code{character} or \code{raw}, as specified by argument \code{rawchar}. All other NetCDF variables are returned to R as type \code{numeric} (double precision).
+
+The dimension order in the R array is reversed relative to the order reported by NetCDF commands such as \code{ncdump}, because NetCDF arrays are stored in row-major (C) order whereas R arrays are stored in column-major (Fortran) order.
+
+Arrays of type \code{character} drop the fastest-varying dimension of the corresponding \code{NC_CHAR} array, because this dimension corresponds to the length of the individual \code{character} elements. For example, an \code{NC_CHAR} array with dimensions (5,10) would be returned as a \code{character} vector containing 5 elements, each with a maximum length of 10 characters.}
+
 \references{\url{http://www.unidata.ucar.edu/software/netcdf/}}
 
 \note{\code{NC_BYTE} is always interpreted as signed.}
@@ -47,7 +46,7 @@ Awkwardness arises mainly from one thing: NetCDF data are written with the last 
 
 \examples{
 ##  Create a new NetCDF dataset and define two dimensions
-nc <- create.nc("var.get.nc")
+nc <- create.nc("foo.nc")
 
 dim.def.nc(nc, "station", 5)
 dim.def.nc(nc, "time", unlim=TRUE)
@@ -71,10 +70,10 @@ var.put.nc(nc, "time", mytime, 1, length(mytime))
 var.put.nc(nc, "temperature", mytemperature, c(1,1), c(5,2))
 var.put.nc(nc, "name", myname, c(1,1), c(32,5))
 
+sync.nc(nc)
+
 ##  Get the data (or a subset)
 var.get.nc(nc, 0)
-var.get.nc(nc, "time", 1, 1)
-var.get.nc(nc, "time", 1, NA)
 var.get.nc(nc, "temperature")
 var.get.nc(nc, "temperature", c(NA,2), c(NA,1))
 var.get.nc(nc, "name")

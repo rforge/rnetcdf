@@ -21,7 +21,7 @@
 
 \examples{
 ##  Create a void NetCDF dataset
-nc <- create.nc("close.nc")
+nc <- create.nc("foo.nc")
 close.nc(nc)
 }
 

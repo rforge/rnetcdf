@@ -11,11 +11,9 @@
 \arguments{
   \item{ncfile}{Object of class "\code{NetCDF}" which points to the NetCDF dataset (as returned from \code{\link[RNetCDF]{open.nc}}).}
   \item{varname}{Variable name. Must begin with an alphabetic character, followed by zero or more alphanumeric characters including the underscore ("\code{_}"). Case is significant.}
-  \item{vartype}{External NetCDF data type as one of the following labels: \code{NC_BYTE}, \code{NC_UBYTE}, \code{NC_CHAR}, \code{NC_SHORT}, \code{NC_USHORT}, \code{NC_INT}, \code{NC_UINT}, \code{NC_INT64}, \code{NC_UINT64}, \code{NC_FLOAT}, \code{NC_DOUBLE}, \code{NC_STRING}, or a user-defined type name.}
+  \item{vartype}{One of the set of predefined NetCDF external data types. The valid NetCDF external data types are \code{NC_BYTE}, \code{NC_CHAR}, \code{NC_SHORT}, \code{NC_INT}, \code{NC_FLOAT}, and \code{NC_DOUBLE}.}
   \item{dimensions}{Vector of \code{ndims} dimension IDs or their names corresponding to the variable dimensions or \code{NA} if a scalar variable should be created. If the ID (or name) of the unlimited dimension is included, it must be last.}
 }
-
-\value{NetCDF variable identifier, returned invisibly.}
 
 \details{This function creates a new NetCDF variable. A NetCDF variable has a name, a type, and a shape, which are specified when it is defined. A variable may also have values, which are established later in data mode. 
 
@@ -31,7 +29,7 @@ Attributes may be associated with a variable to specify such properties as units
 
 \examples{
 ##  Create a new NetCDF dataset and define two dimensions
-nc <- create.nc("var.def.nc")
+nc <- create.nc("foo.nc")
 
 dim.def.nc(nc, "station", 5)
 dim.def.nc(nc, "time", unlim=TRUE)

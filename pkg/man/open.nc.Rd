@@ -18,9 +18,9 @@
   \item{...}{Arguments passed to or from other methods (not used).}
 }
 
-\value{Object of class "\code{NetCDF}" which points to the NetCDF dataset, returned invisibly.}
-
 \details{This function opens an existing NetCDF dataset for access. By default, the dataset is opened read-only. If \code{write=TRUE}, then the dataset can be changed. This includes appending or changing data, adding dimensions, variables, and attributes.}
+
+\value{Object of class "\code{NetCDF}" which points to the NetCDF dataset.}
 
 \references{\url{http://www.unidata.ucar.edu/software/netcdf/}}
 
@@ -28,11 +28,11 @@
 
 \examples{
 ##  Create a void NetCDF dataset
-nc <- create.nc("open.nc")
+nc <- create.nc("foo.nc")
 close.nc(nc)
 
 ##  Open the NetCDF dataset for writing
-nc <- open.nc("open.nc", write=TRUE)
+nc <- open.nc("foo.nc", write=TRUE)
 close.nc(nc)
 }
 

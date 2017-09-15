@@ -13,6 +13,8 @@
   \item{dimension}{Either the ID or the name of the dimension to be inquired.}
 }
 
+\details{This function returns information about a NetCDF dimension. Information about a dimension include its name, its ID, its length and a flag if it is the unlimited dimension of this NetCDF dataset, if any. The length of the unlimited dimension, if any, is the number of records written so far.}
+
 \value{
   A list containing the following components:
   \item{id}{Dimension ID.}
@@ -21,15 +23,13 @@
   \item{unlim}{\code{TRUE} if it is the unlimited dimension, \code{FALSE} otherwise.} 
 }
 
-\details{This function returns information about a NetCDF dimension. Information about a dimension include its name, its ID, its length and a flag if it is the unlimited dimension of this NetCDF dataset, if any. The length of the unlimited dimension, if any, is the number of records written so far.}
-
 \references{\url{http://www.unidata.ucar.edu/software/netcdf/}}
 
 \author{Pavel Michna}
 
 \examples{
 ##  Create a new NetCDF dataset and define two dimensions
-nc <- create.nc("dim.inq.nc")
+nc <- create.nc("foo.nc")
 
 dim.def.nc(nc, "station", 5)
 dim.def.nc(nc, "time", unlim=TRUE)
