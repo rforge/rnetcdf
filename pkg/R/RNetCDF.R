@@ -2,14 +2,14 @@
 #										#
 #  Name:       RNetCDF.R							#
 #										#
-#  Version:    1.8-2								#
+#  Version:    1.9-1								#
 #										#
 #  Purpose:    NetCDF interface for R.						#
 #										#
-#  Author:     Pavel Michna (michna@giub.unibe.ch)				#
-#              Milton Woods (m.woods@bom.gov.au)                                #
+#  Author:     Pavel Michna (rnetcdf-devel@bluewin.ch)                          #
+#              Milton Woods (miltonjwoods@gmail.com)                            #
 #										#
-#  Copyright:  (C) 2004-2014 Pavel Michna					#
+#  Copyright:  (C) 2004-2017 Pavel Michna					#
 #										#
 #===============================================================================#
 #										#
@@ -49,6 +49,8 @@
 #  mw       05/09/14   Support reading and writing raw character arrays         #
 #  mw       08/09/14   Handle reading and writing of zero-sized arrays          #
 #  mw       24/01/16   Support conversion of timestamps to/from POSIXct         #
+#  mw       29/07/17   Replace NA in count of var.get.nc and var.put.nc so that #
+#                      corresponding dimensions are read/written to end         #
 #										#
 #===============================================================================#
 
@@ -779,21 +781,26 @@ var.get.nc <- function(ncfile, variable, start=NA, count=NA, na.mode=0,
     #-- Get the varid as integer if necessary ----------------------------------#
     ifelse(is.character(variable), varid <- varinfo$id, varid <- variable)
 
-    #-- Replace NA by defined limits -------------------------------------------#
-    if(isTRUE(is.na(start))) {
-      start <- rep(NA, ndims)
+    # Truncate start & count to length ndims
+    # and replace NA as described in the man page:
+    if (isTRUE(is.na(start))) {
+      start <- rep(1, ndims)
+    } else if (length(start) > ndims) {
+      start <- start[seq_len(ndims)]
     }
-    if(isTRUE(is.na(count))) {
-      count <- rep(NA, ndims)
-    }
-
-    if(length(start) != ndims || length(count) != ndims)
-      stop("Length of start/count is not ndims", call.=FALSE)
-
+    stopifnot(length(start) == ndims)
     start[is.na(start)] <- 1
+
+    if (isTRUE(is.na(count))) {
+      count <- rep(NA, ndims)
+    } else if (length(count) > ndims) {
+      count <- count[seq_len(ndims)]
+    }
+    stopifnot(length(count) == ndims)
     for (idim in seq_len(ndims)) {
       if (is.na(count[idim])) {
-        count[idim] <- dim.inq.nc(ncfile, varinfo$dimids[idim])$length
+	diminfo <- dim.inq.nc(ncfile, varinfo$dimids[idim])
+	count[idim] <- ( diminfo$length - start[idim] + 1 )
       }
     }
 
@@ -988,48 +995,80 @@ var.put.nc <- function(ncfile, variable, data, start=NA, count=NA, na.mode=0,
 	    mode(data) <- "numeric"
     }
 
-    #-- Check length of character strings --------------------------------------#
+    # Truncate start & count to length ndims
+    # and replace NA as described in the man page:
+    if (isTRUE(is.na(start))) {
+      start <- rep(1, ndims)
+    } else if (length(start) > ndims) {
+      start <- start[seq_len(ndims)]
+    }
+    stopifnot(length(start) == ndims)
+    start[is.na(start)] <- 1
+
+    if (isTRUE(is.na(count))) {
+      if (!is.null(dim(data))) {
+        count <- dim(data)
+      } else if (ndims==0 && length(data)==1) {
+        count <- integer(0)
+      } else {
+        count <- length(data)
+      }
+      if (is.character(data) && ndims > 0) {
+        strlen <- dim.inq.nc(ncfile, varinfo$dimids[1])$length
+        count <- c(strlen, count)
+      }    
+    } else if (length(count) > ndims) {
+      count <- count[seq_len(ndims)]
+    }
+    stopifnot(length(count) == ndims)
+    for (idim in seq_len(ndims)) {
+      if (is.na(count[idim])) {
+	diminfo <- dim.inq.nc(ncfile, varinfo$dimids[idim])
+	count[idim] <- ( diminfo$length - start[idim] + 1 )
+      }
+    }
+
+    #-- Check that length of data is sufficient --------------------------------#
+    if (is.character(data) && ndims > 0) {
+      numelem <- prod(count[-1])
+    } else {
+      numelem <- prod(count) # Returns 1 if ndims==0 (scalar variable)
+    }
+    if (length(data) < numelem) {
+      stop(paste("Not enough data elements (found ",length(data),
+             ", need ",numelem,")", sep=""), call.=FALSE)
+    }
+
+    #-- Warn if strings will be truncated --------------------------------------#
     if (is.character(data)) {
       if (ndims > 0) {
-        strlen <- dim.inq.nc(ncfile, varinfo$dimids[1])$length
+        strlen <- count[1]
       } else {
         strlen <- 1
       }
       if (max(nchar(data,type="bytes")) > strlen) {
-        stop("String length exceeds netcdf dimension", call.=FALSE)
+        warning(paste("Strings truncated to length",strlen), call.=FALSE)
       }
     }
 
-    #-- Replace NA by dimensions of data ---------------------------------------#
-    if (any(is.na(start))) {
-      start <- rep(1, ndims)
-    }
-
-    if (any(is.na(count))) {
-      if (!is.null(dim(data))) {
-	count <- dim(data)
-      } else if (ndims > 0) {
-	count <- length(data)
+    #-- Warn if array data is not conformable with count -----------------------#
+    if (!is.null(dim(data))) {
+      if (is.character(data)) {
+	count_drop <- count[-1]
       } else {
-	count <- integer(0)
+        count_drop <- count
       }
-      if (is.character(data) && ndims > 0) {
-        count <- c(strlen, count)
+      count_drop <- count_drop[count_drop!=1]
+
+      dim_drop <- dim(data)
+      dim_drop <- dim_drop[dim_drop!=1]
+
+      if ((length(count_drop) != length(dim_drop)) || 
+	  any(count_drop != dim_drop)) {
+	warning(paste("Data coerced from dimensions (",
+                  paste(dim(data),collapse=","), ") to dimensions (",
+		  paste(count,collapse=","), ")", sep=""), call.=FALSE)
       }
-    }
-
-    if(length(start) != ndims || length(count) != ndims) {
-      stop("Length of start/count is not ndims", call.=FALSE)
-    }
-
-    #-- Check that length of data and count match ------------------------------#
-    if (is.character(data) && ndims > 0) {
-      numelem <- prod(count[-1])
-    } else {
-      numelem <- prod(count)
-    }
-    if (length(data) != numelem) {
-      stop("Mismatch between count and length(data)", call.=FALSE)
     }
 
     #-- Pack variables if requested (missing values are preserved) -------------#
@@ -1119,7 +1158,7 @@ var.put.nc <- function(ncfile, variable, data, start=NA, count=NA, na.mode=0,
 		    data,
 		    PACKAGE="RNetCDF")
     }
-		    
+
     if(nc$status != 0)
         stop(nc$errmsg, call.=FALSE)
 }
